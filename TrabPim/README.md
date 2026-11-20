@@ -10,7 +10,7 @@ Análise de um volume de tomografia (`volume_TAC.pkl`) em que cada voxel represe
 
 - Leitura do volume 3D salvo com `pickle` e exibição do formato e dos valores presentes.
 - Separação em três máscaras binárias pelo valor do voxel: **proliferativas** (255), **quiescentes** (200) e **necróticas** (140).
-- Rotulação de componentes conexos 3D por BFS, com **conectividade 6** (faces) e **conectividade 26** (faces, arestas e vértices).
+- Rotulação de componentes conexos 3D por BFS, com **conectividade 6** (faces) e **conectividade 26** (faces, arestas e vértices). A busca parte apenas dos voxels de primeiro plano (na mesma ordem da varredura x, y, z), o que deixa a análise do volume 100×100×100 bem mais rápida.
 - Para cada tipo de célula e cada conectividade: total de voxels, número de agrupamentos e histograma do tamanho de cada agrupamento.
 - Visualização 3D dos voxels rotulados em gráfico de dispersão, apenas quando há menos de 5000 pontos.
 
@@ -32,7 +32,7 @@ pip install numpy matplotlib
 python trabPim.py
 ```
 
-Execute de dentro desta pasta, pois `volume_TAC.pkl` é carregado por caminho relativo. Os gráficos abrem um de cada vez; feche cada janela para seguir para o próximo.
+O `volume_TAC.pkl` é procurado na pasta do `trabPim.py`, então o programa pode ser executado de qualquer diretório. Os gráficos abrem um de cada vez; feche cada janela para seguir para o próximo.
 
 ## Autores
 

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pickle
 from collections import deque
@@ -47,63 +48,71 @@ def label_3d(volume_bin, connectivity=6):
     shape = volume_bin.shape
     sizes = {}
 
-    for x in range(shape[0]):
-        for y in range(shape[1]):
-            for z in range(shape[2]):
-                if volume_bin[x, y, z] and labels[x, y, z] == 0:
-                    label += 1
-                    queue = deque([(x, y, z)])
-                    labels[x, y, z] = label
-                    count = 1
+    # Percorre só os voxels de primeiro plano, na mesma ordem (x, y, z) da
+    # varredura tripla original: os rótulos saem iguais, mas sem visitar em
+    # Python o milhão de voxels de fundo do volume 100x100x100.
+    for x, y, z in np.argwhere(volume_bin).tolist():
+        if labels[x, y, z] == 0:
+            label += 1
+            queue = deque([(x, y, z)])
+            labels[x, y, z] = label
+            count = 1
 
-                    while queue:
-                        cx, cy, cz = queue.popleft()
-                        for nx, ny, nz in get_neighbors_3d(cx, cy, cz, shape, connectivity):
-                            if volume_bin[nx, ny, nz] and labels[nx, ny, nz] == 0:
-                                labels[nx, ny, nz] = label
-                                queue.append((nx, ny, nz))
-                                count += 1
+            while queue:
+                cx, cy, cz = queue.popleft()
+                for nx, ny, nz in get_neighbors_3d(cx, cy, cz, shape, connectivity):
+                    if volume_bin[nx, ny, nz] and labels[nx, ny, nz] == 0:
+                        labels[nx, ny, nz] = label
+                        queue.append((nx, ny, nz))
+                        count += 1
 
-                    sizes[label] = count
+            sizes[label] = count
 
     return labels, sizes
 
-# 3. LEITURA DO ARQUIVO DE TOMOGRAFIA
-with open("volume_TAC.pkl", "rb") as f:
-    volume = pickle.load(f)
+def main():
+    # 3. LEITURA DO ARQUIVO DE TOMOGRAFIA
+    # Caminho relativo à pasta do script (funciona rodando de qualquer diretório)
+    caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), "volume_TAC.pkl")
+    with open(caminho, "rb") as f:
+        volume = pickle.load(f)
 
-print("Volume carregado:", volume.shape)
-print("Valores únicos:", np.unique(volume))
+    print("Volume carregado:", volume.shape)
+    print("Valores únicos:", np.unique(volume))
 
-# 4. SEPARAÇÃO POR TIPO DE CÉLULA
-prolif = (volume == 255)
-quiesc = (volume == 200)
-necrot = (volume == 140)
+    # 4. SEPARAÇÃO POR TIPO DE CÉLULA
+    prolif = (volume == 255)
+    quiesc = (volume == 200)
+    necrot = (volume == 140)
 
-# 5. ROTULAÇÃO E ANÁLISE
-for name, mask in zip(["Proliferativas", "Quiescentes", "Necróticas"],
-                      [prolif, quiesc, necrot]):
+    # 5. ROTULAÇÃO E ANÁLISE
+    for name, mask in zip(["Proliferativas", "Quiescentes", "Necróticas"],
+                          [prolif, quiesc, necrot]):
 
-    print(f"\n==== {name.upper()} ====")
-    print("Total de voxels:", np.sum(mask))
+        print(f"\n==== {name.upper()} ====")
+        print("Total de voxels:", np.sum(mask))
 
-    for conn in [6, 26]:
-        labels, sizes = label_3d(mask, connectivity=conn)
-        print(f"Conectividade-{conn}: {len(sizes)} agrupamentos detectados")
+        for conn in [6, 26]:
+            labels, sizes = label_3d(mask, connectivity=conn)
+            print(f"Conectividade-{conn}: {len(sizes)} agrupamentos detectados")
 
-        # Histograma dos tamanhos
-        plt.figure()
-        plt.bar(range(1, len(sizes) + 1), list(sizes.values()), color='red')
-        plt.title(f"Histograma ({name}) - Conectividade-{conn}")
-        plt.xlabel("Agrupamentos")
-        plt.ylabel("Volume (nº de voxels)")
-        plt.show()
-
-        # Visualização 3D de voxels (apenas exemplo para volumes pequenos)
-        coords = np.argwhere(labels > 0)
-        if len(coords) < 5000:  # Limita pontos para não travar
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c='blue', s=2)
-            ax.set_title(f"Volume 3D - {name} (Conectividade-{conn})")
+            # Histograma dos tamanhos
+            plt.figure()
+            plt.bar(range(1, len(sizes) + 1), list(sizes.values()), color='red')
+            plt.title(f"Histograma ({name}) - Conectividade-{conn}")
+            plt.xlabel("Agrupamentos")
+            plt.ylabel("Volume (nº de voxels)")
             plt.show()
+
+            # Visualização 3D de voxels (apenas exemplo para volumes pequenos)
+            coords = np.argwhere(labels > 0)
+            if len(coords) < 5000:  # Limita pontos para não travar
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], c='blue', s=2)
+                ax.set_title(f"Volume 3D - {name} (Conectividade-{conn})")
+                plt.show()
+
+
+if __name__ == "__main__":
+    main()
